@@ -1,27 +1,16 @@
-# Week 8 - Delegate & Event
+# Week 8 - Delegate & Event (Python)
 
-- Ngon ngu: Python
-- Giai doan: 1/5 - Phan tich va thiet ke
+Tien do: Giai doan 2/5.
 
-## Muc tieu
-Quan ly cac thiet bi trong phong day. Thiet bi phat hien thay doi va cong bo su kien; cac subscriber dang ky se tu xu ly.
+Da cai dat enum, event args, `TeachingDevice` va ba lop thiet bi. Cac phuong thuc dang ky/huy dang ky callback da co; publisher khong giu tham chieu toi cac dich vu subscriber.
 
-## Cau truc du kien
-```text
-week8/
-|-- README.md
-|-- docs/
-|   |-- analysis.md
-|   `-- class-diagram.md
-|-- src/
-`-- tests/
+Chua cai dat subscriber services, `FilteredAlertSubscriber`, `DeviceMonitoringCoordinator`, exception rieng, `main.py` va bo test tong the. Cac phan nay se duoc lam o giai doan tiep theo.
+
+## Chay thu
+Tu thu muc du an:
+
+```bash
+python -c "import sys; sys.path.insert(0, 'src'); from teaching_devices import ProjectorRemote; d=ProjectorRemote('P01','Remote may chieu'); d.add_alert_raised_handler(lambda s,e: print(e.message)); d.update_battery_level(15)"
 ```
 
-## Tien do
-- [x] Giai doan 1: Phan tich va thiet ke
-- [ ] Giai doan 2: Cac lop thiet bi va su kien
-- [ ] Giai doan 3: Subscriber va delegate loc canh bao
-- [ ] Giai doan 4: Coordinator va xu ly ngoai le
-- [ ] Giai doan 5: Main, kiem thu va hoan thien
-
-Code se duoc bo sung tu giai doan 2.
+Handler nhan hai tham so: doi tuong phat event va event args. Python khong co cu phap `event` nhu C#, nen danh sach callback duoc quan ly ben trong `TeachingDevice`.
