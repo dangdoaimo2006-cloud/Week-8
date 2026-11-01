@@ -1,74 +1,53 @@
-from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import datetime
 from .enums import DeviceStatus, AlertSeverity
 from .events import DeviceStatusChangedEventArgs, DeviceAlertEventArgs
 
-EventHandler = Callable[[object, object], None]
+class TeachingDevice:
+    def __init__(self, device_id, name):
+        self.id = device_id
+        self.name = name
+        self.status = DeviceStatus.Available
+        self._status_handlers = []
+        self._alert_handlers = []
 
+    def add_status_changed_handler(self, handler):
+        self._add(self._status_handlers, handler)
 
-class TeachingDevice(ABC):
-    def __init__(self, device_id: str, name: str,
-                 status: DeviceStatus = DeviceStatus.Available):
-        if not device_id or not device_id.strip():
-            raise ValueError("Device id khong duoc de trong")
-        if not name or not name.strip():
-            raise ValueError("Ten thiet bi khong duoc de trong")
-        if not isinstance(status, DeviceStatus):
-            raise TypeError("status phai la DeviceStatus")
-        self._id, self._name, self._status = device_id, name, status
-        self.__status_changed_handlers = []
-        self.__alert_raised_handlers = []
+    def remove_status_changed_handler(self, handler):
+        self._remove(self._status_handlers, handler)
 
-    @property
-    @abstractmethod
-    def device_type(self):
-        pass
+    def add_alert_raised_handler(self, handler):
+        self._add(self._alert_handlers, handler)
 
-    @property
-    def id(self): return self._id
+    def remove_alert_raised_handler(self, handler):
+        self._remove(self._alert_handlers, handler)
 
-    @property
-    def name(self): return self._name
+    @staticmethod
+    def _add(handlers, handler):
+        if not callable(handler):
+            raise TypeError("Event handler phai la callable")
+        if handler not in handlers:
+            handlers.append(handler)
 
-    @property
-    def status(self): return self._status
+    @staticmethod
+    def _remove(handlers, handler):
+        if handler in handlers:
+            handlers.remove(handler)
 
-    def add_status_changed_handler(self, handler: EventHandler):
-        if not callable(handler): raise TypeError("Handler phai la callable")
-        self.__status_changed_handlers.append(handler)
-
-    def remove_status_changed_handler(self, handler: EventHandler):
-        if handler in self.__status_changed_handlers:
-            self.__status_changed_handlers.remove(handler)
-
-    def add_alert_raised_handler(self, handler: EventHandler):
-        if not callable(handler): raise TypeError("Handler phai la callable")
-        self.__alert_raised_handlers.append(handler)
-
-    def remove_alert_raised_handler(self, handler: EventHandler):
-        if handler in self.__alert_raised_handlers:
-            self.__alert_raised_handlers.remove(handler)
-
-    def change_status(self, new_status: DeviceStatus):
+    def change_status(self, new_status):
         if not isinstance(new_status, DeviceStatus):
-            raise TypeError("Trang thai moi phai la DeviceStatus")
-        old_status = self._status
-        if old_status == new_status: return
-        self._status = new_status
-        args = DeviceStatusChangedEventArgs(
-            self.id, old_status, new_status, datetime.now(timezone.utc))
-        self._on_status_changed(args)
+            raise TypeError("Trang thai thiet bi khong hop le")
+        if new_status == self.status:
+            return
+        old = self.status
+        self.status = new_status
+        args = DeviceStatusChangedEventArgs(self.id, old, new_status, datetime.now())
+        for handler in tuple(self._status_handlers):
+            handler(self, args)
 
-    def _on_status_changed(self, event_args: DeviceStatusChangedEventArgs):
-        for handler in tuple(self.__status_changed_handlers):
-            handler(self, event_args)
-
-    def _raise_alert(self, message: str, severity: AlertSeverity):
-        args = DeviceAlertEventArgs(
-            self.id, message, severity, datetime.now(timezone.utc))
-        self._on_alert_raised(args)
-
-    def _on_alert_raised(self, event_args: DeviceAlertEventArgs):
-        for handler in tuple(self.__alert_raised_handlers):
-            handler(self, event_args)
+    def raise_alert(self, message, severity):
+        if not isinstance(severity, AlertSeverity):
+            raise TypeError("Muc do canh bao khong hop le")
+        args = DeviceAlertEventArgs(self.id, message, severity, datetime.now())
+        for handler in tuple(self._alert_handlers):
+            handler(self, args)

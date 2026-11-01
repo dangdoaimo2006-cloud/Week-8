@@ -2,14 +2,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from .enums import DeviceStatus, AlertSeverity
 
-
 @dataclass(frozen=True)
 class DeviceStatusChangedEventArgs:
     device_id: str
     old_status: DeviceStatus
     new_status: DeviceStatus
     changed_at: datetime
-
 
 @dataclass(frozen=True)
 class DeviceAlertEventArgs:
