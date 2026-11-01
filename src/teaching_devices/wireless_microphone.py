@@ -1,59 +1,64 @@
-from .enums import AlertSeverity
 from .teaching_device import TeachingDevice
+from .enums import AlertSeverity
+from .exceptions import InvalidDeviceReadingException
 
 
 class WirelessMicrophone(TeachingDevice):
-    @property
-    def device_type(self): return "WirelessMicrophone"
-
-    def __init__(self, device_id: str, name: str,
-                 battery_level: int = 100, signal_quality: int = 100):
+    def __init__(
+        self,
+        device_id,
+        name,
+        battery_level=100,
+        signal_quality=100
+    ):
         super().__init__(device_id, name)
-        self._battery_level = self._validate_percentage(battery_level)
-        self._signal_quality = self._validate_percentage(signal_quality)
+
+        self._validate_percentage(battery_level, device_id)
+        self._validate_percentage(signal_quality, device_id)
+
+        self.battery_level = battery_level
+        self.signal_quality = signal_quality
+
+        self._last_alert_zone = None
 
     @staticmethod
-    def _validate_percentage(value):
+    def _validate_percentage(value, device_id):
         if isinstance(value, bool) or not isinstance(value, int):
             raise TypeError("Gia tri phan tram phai la so nguyen")
-        if not 0 <= value <= 100:
-            raise ValueError("Gia tri phan tram phai nam trong [0, 100]")
-        return value
 
-    @property
-    def battery_level(self): return self._battery_level
+        if value < 0 or value > 100:
+            raise InvalidDeviceReadingException(device_id, value)
 
-    @property
-    def signal_quality(self): return self._signal_quality
+    def update_battery(self, battery_level):
+        self._validate_percentage(battery_level, self.id)
 
-    @staticmethod
-    def _battery_zone(value):
-        if value == 0: return "critical"
-        if value < 30: return "warning"
-        return "normal"
+        self.battery_level = battery_level
+        self._check_alert()
 
-    @staticmethod
-    def _signal_zone(value):
-        if value == 0: return "critical"
-        if value < 40: return "warning"
-        return "normal"
+    def update_signal_quality(self, signal_quality):
+        self._validate_percentage(signal_quality, self.id)
 
-    def update_battery_level(self, value: int):
-        value = self._validate_percentage(value)
-        old, new = self._battery_zone(self._battery_level), self._battery_zone(value)
-        self._battery_level = value
-        if old == new or new == "normal": return
-        if new == "critical":
-            self._raise_alert("Pin micro da het (0%).", AlertSeverity.Critical)
+        self.signal_quality = signal_quality
+        self._check_alert()
+
+    def _check_alert(self):
+        if self.battery_level == 0 or self.signal_quality == 0:
+            current_zone = "critical"
+            severity = AlertSeverity.Critical
+            message = "Microphone gap su co nghiem trong"
+
+        elif self.battery_level < 30 or self.signal_quality < 40:
+            current_zone = "warning"
+            severity = AlertSeverity.Warning
+            message = "Microphone co chi so hoat dong thap"
+
         else:
-            self._raise_alert(f"Pin micro thap: {value}%.", AlertSeverity.Warning)
+            current_zone = None
 
-    def update_signal_quality(self, value: int):
-        value = self._validate_percentage(value)
-        old, new = self._signal_zone(self._signal_quality), self._signal_zone(value)
-        self._signal_quality = value
-        if old == new or new == "normal": return
-        if new == "critical":
-            self._raise_alert("Tin hieu micro mat hoan toan (0%).", AlertSeverity.Critical)
-        else:
-            self._raise_alert(f"Chat luong tin hieu micro thap: {value}%.", AlertSeverity.Warning)
+        if current_zone is None:
+            self._last_alert_zone = None
+            return
+
+        if current_zone != self._last_alert_zone:
+            self.raise_alert(message, severity)
+            self._last_alert_zone = current_zone
